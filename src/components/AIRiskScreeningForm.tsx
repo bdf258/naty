@@ -20,7 +20,14 @@ const formSchema = z.object({
     required_error: "Please select an option.",
   }),
   euSafetyRegulations: z.enum(["yes", "no"]).optional(),
-  typesOfProcessing: z.enum(["yes", "no"]).optional(),
+  biometricIdentification: z.enum(["yes", "no"]).optional(),
+  criticalInfrastructure: z.enum(["yes", "no"]).optional(),
+  educationTraining: z.enum(["yes", "no"]).optional(),
+  employment: z.enum(["yes", "no"]).optional(),
+  essentialServices: z.enum(["yes", "no"]).optional(),
+  lawEnforcement: z.enum(["yes", "no"]).optional(),
+  migrationBorder: z.enum(["yes", "no"]).optional(),
+  justiceProcesses: z.enum(["yes", "no"]).optional(),
   processingExemptions: z.enum(["yes", "no"]).optional(),
 })
 
@@ -41,14 +48,16 @@ interface RadioTileProps {
   description?: string
   selected: boolean
   onClick: () => void
+  compact?: boolean
 }
 
-function RadioTile({ value, label, description, selected, onClick }: RadioTileProps) {
+function RadioTile({ value, label, description, selected, onClick, compact = false }: RadioTileProps) {
   return (
     <div
       onClick={onClick}
       className={cn(
-        "relative flex cursor-pointer rounded-lg border-2 p-6 shadow-sm transition-all hover:shadow-md",
+        "relative flex cursor-pointer rounded-lg border-2 shadow-sm transition-all hover:shadow-md",
+        compact ? "p-3" : "p-6",
         selected
           ? "border-primary bg-primary/5 shadow-md"
           : "border-gray-200 bg-white hover:border-gray-300"
@@ -73,13 +82,16 @@ function RadioTile({ value, label, description, selected, onClick }: RadioTilePr
         </div>
         <div className="ml-4 flex-1">
           <span className={cn(
-            "block text-base font-semibold",
+            compact ? "block text-sm font-medium" : "block text-base font-semibold",
             selected ? "text-primary" : "text-gray-900"
           )}>
             {label}
           </span>
           {description && (
-            <span className="mt-1 block text-sm text-gray-500">
+            <span className={cn(
+              "mt-1 block text-gray-500",
+              compact ? "text-xs" : "text-sm"
+            )}>
               {description}
             </span>
           )}
@@ -99,7 +111,14 @@ export function AIRiskScreeningForm() {
 
   const prohibitedUsesValue = form.watch("prohibitedUses")
   const euSafetyValue = form.watch("euSafetyRegulations")
-  const typesOfProcessingValue = form.watch("typesOfProcessing")
+  const biometricIdentificationValue = form.watch("biometricIdentification")
+  const criticalInfrastructureValue = form.watch("criticalInfrastructure")
+  const educationTrainingValue = form.watch("educationTraining")
+  const employmentValue = form.watch("employment")
+  const essentialServicesValue = form.watch("essentialServices")
+  const lawEnforcementValue = form.watch("lawEnforcement")
+  const migrationBorderValue = form.watch("migrationBorder")
+  const justiceProcessesValue = form.watch("justiceProcesses")
   const processingExemptionsValue = form.watch("processingExemptions")
 
   const navigateToPage = (page: Page) => {
@@ -139,12 +158,29 @@ export function AIRiskScreeningForm() {
   }
 
   const handleQ3Next = () => {
-    if (!typesOfProcessingValue) {
-      form.setError("typesOfProcessing", { message: "Please select an option" })
+    // Check if all processing type questions are answered
+    const processingFields = [
+      { name: "biometricIdentification", value: biometricIdentificationValue, label: "Biometric identification" },
+      { name: "criticalInfrastructure", value: criticalInfrastructureValue, label: "Critical infrastructure" },
+      { name: "educationTraining", value: educationTrainingValue, label: "Education and training" },
+      { name: "employment", value: employmentValue, label: "Employment" },
+      { name: "essentialServices", value: essentialServicesValue, label: "Essential services" },
+      { name: "lawEnforcement", value: lawEnforcementValue, label: "Law enforcement" },
+      { name: "migrationBorder", value: migrationBorderValue, label: "Migration and border control" },
+      { name: "justiceProcesses", value: justiceProcessesValue, label: "Justice and democratic processes" },
+    ]
+
+    // Check if any field is unanswered
+    const unansweredField = processingFields.find(field => !field.value)
+    if (unansweredField) {
+      form.setError(unansweredField.name as any, { message: `Please answer: ${unansweredField.label}` })
       return
     }
 
-    if (typesOfProcessingValue === "yes") {
+    // Check if any answer is "yes"
+    const hasYes = processingFields.some(field => field.value === "yes")
+
+    if (hasYes) {
       navigateToPage("q3sub")
     } else {
       navigateToPage("technical-ending")
@@ -330,7 +366,7 @@ export function AIRiskScreeningForm() {
               </div>
             )}
 
-            {/* Page 3: Question 3 - Types of Processing */}
+            {/* Page 3: Question 3 - Types of Processing (Individual Questions) */}
             {currentPage === "q3" && (
               <div className="space-y-6">
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
@@ -342,49 +378,272 @@ export function AIRiskScreeningForm() {
                   </p>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="typesOfProcessing"
-                  render={({ field }) => (
-                    <FormItem className="space-y-4">
-                      <FormLabel className="text-lg font-semibold text-gray-900">
-                        Types of Processing / High-Risk Determination
-                      </FormLabel>
-                      <p className="text-sm text-gray-600">
-                        Will the AI system involve any of the following types of processing?
-                      </p>
-                      <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 ml-4">
-                        <li>Biometric identification and categorisation of natural persons</li>
-                        <li>Management and operation of critical infrastructure</li>
-                        <li>Education and vocational training (e.g., assessment, monitoring)</li>
-                        <li>Employment, workers management and access to self-employment</li>
-                        <li>Access to and enjoyment of essential private services and public services and benefits</li>
-                        <li>Law enforcement (risk assessment, polygraphs, emotion recognition, etc.)</li>
-                        <li>Migration, asylum and border control management</li>
-                        <li>Administration of justice and democratic processes</li>
-                      </ul>
-                      <FormControl>
-                        <div className="grid gap-4 mt-4">
-                          <RadioTile
-                            value="yes"
-                            label="Yes"
-                            description="The AI system involves one or more of these processing types"
-                            selected={field.value === "yes"}
-                            onClick={() => field.onChange("yes")}
-                          />
-                          <RadioTile
-                            value="no"
-                            label="No"
-                            description="None of these processing types apply"
-                            selected={field.value === "no"}
-                            onClick={() => field.onChange("no")}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Types of Processing / High-Risk Determination
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Please indicate whether the AI system will involve any of the following types of processing:
+                    </p>
+                  </div>
+
+                  {/* Biometric Identification */}
+                  <FormField
+                    control={form.control}
+                    name="biometricIdentification"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          1. Biometric identification and categorisation of natural persons
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Critical Infrastructure */}
+                  <FormField
+                    control={form.control}
+                    name="criticalInfrastructure"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          2. Management and operation of critical infrastructure
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Education and Training */}
+                  <FormField
+                    control={form.control}
+                    name="educationTraining"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          3. Education and vocational training (e.g., assessment, monitoring)
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Employment */}
+                  <FormField
+                    control={form.control}
+                    name="employment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          4. Employment, workers management and access to self-employment
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Essential Services */}
+                  <FormField
+                    control={form.control}
+                    name="essentialServices"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          5. Access to and enjoyment of essential private services and public services and benefits
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Law Enforcement */}
+                  <FormField
+                    control={form.control}
+                    name="lawEnforcement"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          6. Law enforcement (risk assessment, polygraphs, emotion recognition, etc.)
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Migration and Border Control */}
+                  <FormField
+                    control={form.control}
+                    name="migrationBorder"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          7. Migration, asylum and border control management
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Justice and Democratic Processes */}
+                  <FormField
+                    control={form.control}
+                    name="justiceProcesses"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-900">
+                          8. Administration of justice and democratic processes
+                        </FormLabel>
+                        <FormControl>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <RadioTile
+                              value="yes"
+                              label="Yes"
+                              selected={field.value === "yes"}
+                              onClick={() => field.onChange("yes")}
+                              compact
+                            />
+                            <RadioTile
+                              value="no"
+                              label="No"
+                              selected={field.value === "no"}
+                              onClick={() => field.onChange("no")}
+                              compact
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <div className="flex justify-between pt-4">
                   <Button onClick={goBack} variant="outline" size="lg" className="gap-2">
