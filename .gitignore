@@ -30,3 +30,6 @@ server/node_modules
 *.njsproj
 *.sln
 *.sw?
+playwright-report/
+test-results/
+
