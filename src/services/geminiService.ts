@@ -1,6 +1,24 @@
-// Gemini Flash 3.0 API Service for LLM support in DPIA assessment
+// Gemini API Service - proxied through backend server
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+// Get API URL from runtime config (Docker) or build-time env var (dev)
+declare global {
+  interface Window {
+    ENV?: {
+      VITE_API_URL?: string;
+    };
+  }
+}
+
+const getApiUrl = (): string => {
+  // Check runtime config first (for Docker deployment)
+  if (window.ENV?.VITE_API_URL && !window.ENV.VITE_API_URL.includes('__')) {
+    return window.ENV.VITE_API_URL;
+  }
+  // Fall back to build-time env var or default
+  return import.meta.env.VITE_API_URL || 'http://localhost:3001';
+};
+
+const API_BASE_URL = getApiUrl();
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -30,131 +48,36 @@ export interface ChatContext {
   dataSources?: DataSourceContext[];
 }
 
-const SYSTEM_PROMPT = `You are an expert Data Protection Impact Assessment (DPIA) assistant, specializing in EU AI Act compliance and GDPR requirements. Your role is to help users complete complex DPIA questionnaires by:
-
-1. **Explaining Questions**: Breaking down complex legal and technical questions into understandable terms
-2. **Structuring Responses**: Helping users formulate comprehensive, compliant responses
-3. **Providing Examples**: Offering relevant examples and templates when helpful
-4. **Identifying Risks**: Highlighting potential data protection risks and mitigation strategies
-5. **Regulatory Guidance**: Referencing relevant EU AI Act articles, GDPR provisions, and best practices
-
-When helping users:
-- Be concise but thorough
-- Use bullet points for clarity when listing items
-- Cite specific regulations when relevant (e.g., "Under Article 35 of GDPR...")
-- Suggest what information the user should gather if they don't have it readily available
-- Flag any potential compliance concerns
-
-Remember: You're helping with legitimate compliance work, not providing legal advice. Recommend consulting legal counsel for complex situations.`;
-
 export async function sendMessage(
   messages: Message[],
   context?: ChatContext
 ): Promise<string> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in your environment.');
-  }
-
-  // Build context-aware prompt
-  let contextPrompt = SYSTEM_PROMPT;
-
-  if (context?.currentQuestion) {
-    contextPrompt += `\n\n## Current Question Context
-**Category**: ${context.currentQuestion.category}
-**Question**: ${context.currentQuestion.question}
-${context.currentQuestion.guidance ? `**Official Guidance**: ${context.currentQuestion.guidance}` : ''}
-${context.currentQuestion.exampleResponse ? `**Example Response Format**: ${context.currentQuestion.exampleResponse}` : ''}`;
-  }
-
-  if (context?.previousAnswers && Object.keys(context.previousAnswers).length > 0) {
-    contextPrompt += `\n\n## Previously Answered Questions
-The user has already provided the following information:
-${Object.entries(context.previousAnswers).map(([q, a]) => `- **${q}**: ${a}`).join('\n')}`;
-  }
-
-  if (context?.organizationContext) {
-    contextPrompt += `\n\n## Organization Context
-${context.organizationContext}`;
-  }
-
-  if (context?.dataSources && context.dataSources.length > 0) {
-    contextPrompt += `\n\n## Relevant Data Sources
-The user has selected the following data sources as relevant to this question. Use this information to help provide more accurate and contextual responses:
-
-${context.dataSources.map((ds, i) => `### Source ${i + 1}: ${ds.name} (${ds.type})
-${ds.content}`).join('\n\n')}`;
-  }
-
-  // Format messages for Gemini API
-  const geminiMessages = [
-    {
-      role: 'user',
-      parts: [{ text: contextPrompt }]
-    },
-    {
-      role: 'model',
-      parts: [{ text: 'I understand. I\'m ready to assist with the DPIA assessment. How can I help you with the current question?' }]
-    },
-    ...messages.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }))
-  ];
-
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        contents: geminiMessages,
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        },
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-          }
-        ]
-      })
+      body: JSON.stringify({ messages, context })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error: ${response.status} - ${JSON.stringify(errorData)}`);
+      throw new Error(`API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
 
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-      return data.candidates[0].content.parts[0].text;
+    if (data.response) {
+      return data.response;
     }
 
-    throw new Error('Unexpected response format from Gemini API');
+    throw new Error('Unexpected response format from API');
   } catch (error) {
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error('Failed to communicate with Gemini API');
+    throw new Error('Failed to communicate with API');
   }
 }
 
