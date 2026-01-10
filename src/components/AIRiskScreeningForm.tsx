@@ -43,7 +43,7 @@ type Page =
   | "technical-ending"
 
 interface RadioTileProps {
-  value: string
+  value?: string
   label: string
   description?: string
   selected: boolean
@@ -51,7 +51,7 @@ interface RadioTileProps {
   compact?: boolean
 }
 
-function RadioTile({ value, label, description, selected, onClick, compact = false }: RadioTileProps) {
+function RadioTile({ label, description, selected, onClick, compact = false }: RadioTileProps) {
   return (
     <div
       onClick={onClick}
@@ -101,7 +101,11 @@ function RadioTile({ value, label, description, selected, onClick, compact = fal
   )
 }
 
-export function AIRiskScreeningForm() {
+interface AIRiskScreeningFormProps {
+  onProceedToDPIA?: (result: 'high-risk' | 'technical') => void;
+}
+
+export function AIRiskScreeningForm({ onProceedToDPIA }: AIRiskScreeningFormProps) {
   const [currentPage, setCurrentPage] = useState<Page>("q1")
   const [pageHistory, setPageHistory] = useState<Page[]>(["q1"])
 
@@ -800,9 +804,16 @@ export function AIRiskScreeningForm() {
                   <Button onClick={goBack} variant="outline" size="lg" className="gap-2">
                     <ArrowLeft className="h-4 w-4" /> Back
                   </Button>
-                  <Button onClick={resetForm} variant="secondary" size="lg">
-                    Start New Assessment
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={resetForm} variant="secondary" size="lg">
+                      Start New Assessment
+                    </Button>
+                    {onProceedToDPIA && (
+                      <Button onClick={() => onProceedToDPIA('high-risk')} size="lg" className="gap-2">
+                        Proceed to DPIA <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -848,9 +859,16 @@ export function AIRiskScreeningForm() {
                   <Button onClick={goBack} variant="outline" size="lg" className="gap-2">
                     <ArrowLeft className="h-4 w-4" /> Back
                   </Button>
-                  <Button onClick={resetForm} variant="secondary" size="lg">
-                    Start New Assessment
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={resetForm} variant="secondary" size="lg">
+                      Start New Assessment
+                    </Button>
+                    {onProceedToDPIA && (
+                      <Button onClick={() => onProceedToDPIA('technical')} size="lg" className="gap-2">
+                        Proceed to DPIA <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
