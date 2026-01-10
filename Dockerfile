@@ -18,8 +18,8 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-# Install envsubst (part of gettext)
-RUN apk add --no-cache gettext
+# Install envsubst (part of gettext) and curl for healthcheck
+RUN apk add --no-cache gettext curl
 
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
@@ -42,6 +42,6 @@ ENV VITE_API_URL=http://localhost:3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
+  CMD curl -f http://localhost:80 || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
