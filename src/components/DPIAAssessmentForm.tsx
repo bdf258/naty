@@ -1,9 +1,11 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LLMAssistant } from './LLMAssistant';
+import { DataSources } from './DataSources';
 import { parseExcelFile, generateSampleExcel, DEMO_DPIA_QUESTIONS } from '@/services/excelParser';
-import type { DPIAQuestion } from '@/services/geminiService';
+import type { DPIAQuestion, DataSourceContext } from '@/services/geminiService';
+import { getAllDataSources, type DataSource } from '@/services/dataSourcesDb';
 import {
   Upload,
   FileSpreadsheet,
@@ -38,6 +40,9 @@ export function DPIAAssessmentForm({ onBack, triageResult }: DPIAAssessmentFormP
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
+  // Data sources: track selected sources per question
+  const [selectedSourcesByQuestion, setSelectedSourcesByQuestion] = useState<Record<string, string[]>>({});
+  const [allDataSources, setAllDataSources] = useState<DataSource[]>([]);
 
   // Group questions by category
   const questionsByCategory = useMemo(() => {
@@ -54,6 +59,43 @@ export function DPIAAssessmentForm({ onBack, triageResult }: DPIAAssessmentFormP
   const categories = useMemo(() => Object.keys(questionsByCategory), [questionsByCategory]);
 
   const currentQuestion = questions[currentQuestionIndex];
+
+  // Load all data sources for reference
+  const loadAllDataSources = useCallback(async () => {
+    try {
+      const sources = await getAllDataSources();
+      setAllDataSources(sources);
+    } catch (err) {
+      console.error('Failed to load data sources:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAllDataSources();
+  }, [loadAllDataSources]);
+
+  // Get selected data sources for the current question as context for LLM
+  const selectedDataSourcesForLLM = useMemo((): DataSourceContext[] => {
+    if (!currentQuestion) return [];
+    const selectedIds = selectedSourcesByQuestion[currentQuestion.id] || [];
+    return allDataSources
+      .filter(ds => selectedIds.includes(ds.id))
+      .map(ds => ({
+        id: ds.id,
+        name: ds.name,
+        type: ds.type,
+        content: ds.extractedText || ds.content
+      }));
+  }, [currentQuestion, selectedSourcesByQuestion, allDataSources]);
+
+  // Handle selection change for current question
+  const handleDataSourceSelectionChange = useCallback((ids: string[]) => {
+    if (!currentQuestion) return;
+    setSelectedSourcesByQuestion(prev => ({
+      ...prev,
+      [currentQuestion.id]: ids
+    }));
+  }, [currentQuestion]);
 
   const progress = useMemo(() => {
     const answered = Object.keys(answers).filter(id => answers[id]?.trim()).length;
@@ -611,12 +653,21 @@ export function DPIAAssessmentForm({ onBack, triageResult }: DPIAAssessmentFormP
               </div>
             </CardContent>
           </Card>
+
+          {/* Data Sources Card */}
+          <div className="mt-4">
+            <DataSources
+              selectedSourceIds={selectedSourcesByQuestion[currentQuestion?.id] || []}
+              onSelectionChange={handleDataSourceSelectionChange}
+              currentQuestionId={currentQuestion?.id}
+            />
+          </div>
         </div>
 
         {/* LLM Assistant panel */}
         {isAssistantOpen && currentQuestion && (
           <div className="hidden xl:block w-96 flex-shrink-0">
-            <div className="sticky top-6 h-[calc(100vh-150px)]">
+            <div className="fixed top-0 right-0 h-screen w-96">
               <LLMAssistant
                 currentQuestion={currentQuestion}
                 previousAnswers={answers}
@@ -624,6 +675,7 @@ export function DPIAAssessmentForm({ onBack, triageResult }: DPIAAssessmentFormP
                 onInsertText={handleInsertText}
                 isOpen={isAssistantOpen}
                 onToggle={() => setIsAssistantOpen(false)}
+                dataSources={selectedDataSourcesForLLM}
               />
             </div>
           </div>
@@ -654,6 +706,7 @@ export function DPIAAssessmentForm({ onBack, triageResult }: DPIAAssessmentFormP
               onInsertText={handleInsertText}
               isOpen={isAssistantOpen}
               onToggle={() => setIsAssistantOpen(false)}
+              dataSources={selectedDataSourcesForLLM}
             />
           </div>
         </div>

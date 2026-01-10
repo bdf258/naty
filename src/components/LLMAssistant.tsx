@@ -7,7 +7,8 @@ import {
   generateDraftResponse,
   type Message,
   type DPIAQuestion,
-  type ChatContext
+  type ChatContext,
+  type DataSourceContext
 } from '@/services/geminiService';
 import {
   MessageSquare,
@@ -30,6 +31,7 @@ interface LLMAssistantProps {
   onInsertText?: (text: string) => void;
   isOpen: boolean;
   onToggle: () => void;
+  dataSources?: DataSourceContext[];
 }
 
 export function LLMAssistant({
@@ -38,7 +40,8 @@ export function LLMAssistant({
   currentAnswer,
   onInsertText,
   isOpen,
-  onToggle
+  onToggle,
+  dataSources
 }: LLMAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -72,7 +75,8 @@ export function LLMAssistant({
   const getContext = (): ChatContext => ({
     currentQuestion,
     previousAnswers,
-    organizationContext: currentAnswer ? `Current draft answer: "${currentAnswer}"` : undefined
+    organizationContext: currentAnswer ? `Current draft answer: "${currentAnswer}"` : undefined,
+    dataSources
   });
 
   const handleSendMessage = async (content: string) => {
@@ -155,52 +159,53 @@ export function LLMAssistant({
   }
 
   return (
-    <Card className="h-full flex flex-col border-l-4 border-l-primary">
-      <CardHeader className="flex-shrink-0 py-3 px-4 border-b">
+    <Card className="h-full flex flex-col border-l-4 border-l-primary rounded-none">
+      <CardHeader className="flex-shrink-0 py-2 px-3 border-b">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">AI Assistant</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <CardTitle className="text-base">AI Assistant</CardTitle>
           </div>
-          <Button variant="ghost" size="icon" onClick={onToggle} className="h-8 w-8">
-            <X className="h-4 w-4" />
+          <Button variant="ghost" size="icon" onClick={onToggle} className="h-6 w-6">
+            <X className="h-3 w-3" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground">
           Get help answering DPIA questions
         </p>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {/* Quick help suggestions */}
           {showQuickHelp && messages.length === 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Lightbulb className="h-4 w-4" />
-                <span>Quick help for this question:</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Lightbulb className="h-3 w-3" />
+                <span>Quick help:</span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {quickHelpSuggestions.map((suggestion, index) => (
                   <button
                     key={index}
                     onClick={() => handleSendMessage(suggestion)}
-                    className="text-left text-sm px-3 py-2 rounded-lg bg-primary/5 hover:bg-primary/10 text-primary transition-colors"
+                    className="text-left text-xs px-2 py-1.5 rounded bg-primary/5 hover:bg-primary/10 text-primary transition-colors"
                   >
                     {suggestion}
                   </button>
                 ))}
               </div>
 
-              <div className="pt-2">
+              <div className="pt-1">
                 <Button
                   variant="outline"
-                  className="w-full gap-2"
+                  size="sm"
+                  className="w-full gap-1.5 h-8 text-xs"
                   onClick={handleGenerateDraft}
                   disabled={isLoading}
                 >
-                  <FileText className="h-4 w-4" />
+                  <FileText className="h-3 w-3" />
                   Generate Draft Response
                 </Button>
               </div>
@@ -218,22 +223,22 @@ export function LLMAssistant({
             >
               <div
                 className={cn(
-                  'max-w-[90%] rounded-lg px-4 py-3',
+                  'max-w-[90%] rounded px-2 py-1.5',
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted'
                 )}
               >
-                <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                <div className="text-xs whitespace-pre-wrap">{message.content}</div>
 
                 {/* Insert text button for assistant messages */}
                 {message.role === 'assistant' && onInsertText && (
-                  <div className="mt-2 pt-2 border-t border-border/50">
+                  <div className="mt-1 pt-1 border-t border-border/50">
                     {extractCodeBlock(message.content) ? (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs gap-1"
+                        className="h-6 text-xs gap-1 px-1"
                         onClick={() => {
                           const extracted = extractCodeBlock(message.content);
                           if (extracted) onInsertText(extracted);
@@ -246,7 +251,7 @@ export function LLMAssistant({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs gap-1"
+                        className="h-6 text-xs gap-1 px-1"
                         onClick={() => onInsertText(message.content)}
                       >
                         <FileText className="h-3 w-3" />
@@ -262,21 +267,21 @@ export function LLMAssistant({
           {/* Loading indicator */}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-muted rounded-lg px-4 py-3">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <div className="bg-muted rounded px-2 py-1.5">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             </div>
           )}
 
           {/* Error message */}
           {error && (
-            <div className="bg-destructive/10 text-destructive rounded-lg px-4 py-3 text-sm">
+            <div className="bg-destructive/10 text-destructive rounded px-2 py-1.5 text-xs">
               <div className="flex items-center justify-between">
                 <span>{error}</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs"
+                  className="h-5 text-xs p-0"
                   onClick={() => setError(null)}
                 >
                   <RefreshCw className="h-3 w-3" />
@@ -292,41 +297,41 @@ export function LLMAssistant({
         <div className="border-t">
           <button
             onClick={() => setShowQuickHelp(!showQuickHelp)}
-            className="w-full flex items-center justify-between px-4 py-2 text-xs text-muted-foreground hover:bg-muted/50"
+            className="w-full flex items-center justify-between px-2 py-1 text-xs text-muted-foreground hover:bg-muted/50"
           >
-            <span>Current Question Context</span>
+            <span>Context</span>
             {showQuickHelp ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
           {showQuickHelp && (
-            <div className="px-4 pb-2 text-xs text-muted-foreground bg-muted/30">
-              <p className="font-medium text-foreground">{currentQuestion.category}</p>
-              <p className="line-clamp-2 mt-1">{currentQuestion.question}</p>
+            <div className="px-2 pb-1 text-xs text-muted-foreground bg-muted/30">
+              <p className="font-medium text-foreground text-xs">{currentQuestion.category}</p>
+              <p className="line-clamp-2">{currentQuestion.question}</p>
             </div>
           )}
         </div>
 
         {/* Input area */}
-        <div className="flex-shrink-0 p-4 border-t bg-background">
-          <div className="flex gap-2">
+        <div className="flex-shrink-0 p-2 border-t bg-background">
+          <div className="flex gap-1.5">
             <textarea
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask for help with this question..."
-              className="flex-1 min-h-[60px] max-h-[120px] px-3 py-2 text-sm rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Ask for help..."
+              className="flex-1 min-h-[44px] max-h-[80px] px-2 py-1.5 text-xs rounded border border-input bg-background resize-none focus:outline-none focus:ring-1 focus:ring-primary"
               disabled={isLoading}
             />
             <Button
               onClick={() => handleSendMessage(inputValue)}
               disabled={!inputValue.trim() || isLoading}
               size="icon"
-              className="h-[60px] w-10"
+              className="h-[44px] w-8"
             >
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Send className="h-4 w-4" />
+                <Send className="h-3 w-3" />
               )}
             </Button>
           </div>

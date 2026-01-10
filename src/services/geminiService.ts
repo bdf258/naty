@@ -16,10 +16,18 @@ export interface DPIAQuestion {
   required: boolean;
 }
 
+export interface DataSourceContext {
+  id: string;
+  name: string;
+  type: 'file' | 'link';
+  content: string;
+}
+
 export interface ChatContext {
   currentQuestion: DPIAQuestion;
   previousAnswers: Record<string, string>;
   organizationContext?: string;
+  dataSources?: DataSourceContext[];
 }
 
 const SYSTEM_PROMPT = `You are an expert Data Protection Impact Assessment (DPIA) assistant, specializing in EU AI Act compliance and GDPR requirements. Your role is to help users complete complex DPIA questionnaires by:
@@ -69,6 +77,14 @@ ${Object.entries(context.previousAnswers).map(([q, a]) => `- **${q}**: ${a}`).jo
   if (context?.organizationContext) {
     contextPrompt += `\n\n## Organization Context
 ${context.organizationContext}`;
+  }
+
+  if (context?.dataSources && context.dataSources.length > 0) {
+    contextPrompt += `\n\n## Relevant Data Sources
+The user has selected the following data sources as relevant to this question. Use this information to help provide more accurate and contextual responses:
+
+${context.dataSources.map((ds, i) => `### Source ${i + 1}: ${ds.name} (${ds.type})
+${ds.content}`).join('\n\n')}`;
   }
 
   // Format messages for Gemini API
