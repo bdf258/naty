@@ -2,8 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and build tools for native modules
+RUN apk add --no-cache curl python3 make g++
 
 # Copy package files
 COPY package*.json ./
@@ -13,6 +13,9 @@ RUN npm ci --only=production
 
 # Copy application code
 COPY . .
+
+# Create data directory for SQLite database
+RUN mkdir -p /app/data
 
 # Expose port
 EXPOSE 3001
