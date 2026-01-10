@@ -29,6 +29,7 @@ services:
       - PORT=3001
     networks:
       - app-network
+      - dokploy-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
