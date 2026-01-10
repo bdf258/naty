@@ -19,6 +19,7 @@ dist-ssr
 
 # Server
 server/node_modules
+server/data
 
 # Editor directories and files
 .vscode/*
